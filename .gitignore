@@ -42,3 +42,44 @@ terraform.rc
 # Optional: ignore plan files saved before destroying Terraform configuration
 # Uncomment the line below if you want to ignore planout files.
 # planout
+
+# =========================
+# Windows files
+# =========================
+desktop.ini
+Thumbs.db
+
+# =========================
+# Python files
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+
+# =========================
+# IDE files
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+
+# =========================
+# Terraform plans
+# =========================
+*.tfplan
+
+# =========================
+# Terraform variable files
+# =========================
+terraform.tfvars
+
+# =========================
+# AWS credentials (never commit)
+# =========================
+*.pem
+*.key
+credentials
