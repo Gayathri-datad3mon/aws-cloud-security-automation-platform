@@ -296,7 +296,7 @@ Free Tier Cost Optimization
 
 ## What is EventBridge?
 
-EventBridge is AWS's event routing service.
+EventBridge is AWS's event routing service. CloudTrail records all AWS API activity, while EventBridge continuously monitors those events and filters for security-relevant IAM actions such as CreateUser, DeleteUser, and CreateAccessKey. When a matching event occurs, EventBridge automatically invokes a Lambda function, enabling real-time security monitoring and alerting without manual log review.
 
 It acts like:
 
@@ -427,6 +427,10 @@ Automatic Scaling
 ```
 
 ---
+Why did you use Lambda instead of sending CloudTrail events directly to SNS?
+```text
+Initially, EventBridge forwarded CloudTrail events directly to SNS, which resulted in raw JSON notifications. I introduced AWS Lambda as an intermediate processing layer to parse CloudTrail events, extract relevant security information such as the actor, target user, source IP, and region, and generate analyst-friendly security alerts. This approach improves readability, enables future enrichment and risk scoring, and supports more advanced automated response workflows.
+```
 
 ## Lambda Function
 
