@@ -104,3 +104,58 @@ resource "aws_cloudtrail" "security_trail" {
     aws_s3_bucket_policy.cloudtrail_policy
   ]
 }
+
+# -----------------------------
+# Phase 3 - EventBridge + SNS
+# -----------------------------
+
+resource "aws_sns_topic" "security_alerts" {
+  name = "security-alerts"
+}
+
+resource "aws_sns_topic_subscription" "email_alert" {
+  topic_arn = aws_sns_topic.security_alerts.arn
+  protocol  = "email"
+  endpoint  = "gayathrinaidu1999@gmail.com"
+}
+
+resource "aws_cloudwatch_event_rule" "iam_user_created" {
+  name        = "iam-user-created"
+  description = "Detect IAM user creation through CloudTrail"
+
+  event_pattern = jsonencode({
+    source      = ["aws.iam"]
+    detail-type = ["AWS API Call via CloudTrail"]
+
+    detail = {
+      eventSource = ["iam.amazonaws.com"]
+      eventName   = ["CreateUser"]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "send_to_sns" {
+  rule = aws_cloudwatch_event_rule.iam_user_created.name
+  arn  = aws_sns_topic.security_alerts.arn
+}
+
+resource "aws_sns_topic_policy" "allow_eventbridge" {
+  arn = aws_sns_topic.security_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowEventBridgePublish"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.security_alerts.arn
+      }
+    ]
+  })
+}
