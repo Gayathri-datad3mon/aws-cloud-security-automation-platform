@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "secure_bucket" {
-  bucket = "gayathri-security-bucket-2026"
+  bucket = "gayathri-cloud-security-platform-2026"
 }
 
 resource "aws_s3_bucket_versioning" "versioning" {
@@ -97,7 +97,7 @@ resource "aws_cloudtrail" "security_trail" {
   name                          = "security-trail"
   s3_bucket_name                = aws_s3_bucket.secure_bucket.id
   include_global_service_events = true
-  is_multi_region_trail         = false
+  is_multi_region_trail         = true
   enable_logging                = true
 
   depends_on = [
@@ -120,24 +120,36 @@ resource "aws_sns_topic_subscription" "email_alert" {
 }
 
 resource "aws_cloudwatch_event_rule" "iam_user_created" {
-  name        = "iam-user-created"
-  description = "Detect IAM user creation through CloudTrail"
+  name        = "iam-security-events"
+  description = "Detect critical IAM changes"
 
   event_pattern = jsonencode({
-    source      = ["aws.iam"]
-    detail-type = ["AWS API Call via CloudTrail"]
+    source = [
+      "aws.iam"
+    ]
+
+    detail-type = [
+      "AWS API Call via CloudTrail"
+    ]
 
     detail = {
-      eventSource = ["iam.amazonaws.com"]
-      eventName   = ["CreateUser"]
+      eventName = [
+        "CreateUser",
+        "DeleteUser",
+        "CreateAccessKey",
+        "DeleteAccessKey",
+        "AttachUserPolicy",
+        "PutUserPolicy",
+        "CreateLoginProfile"
+      ]
     }
   })
 }
 
-resource "aws_cloudwatch_event_target" "send_to_sns" {
-  rule = aws_cloudwatch_event_rule.iam_user_created.name
-  arn  = aws_sns_topic.security_alerts.arn
-}
+#resource "aws_cloudwatch_event_target" "send_to_sns" {
+# rule = aws_cloudwatch_event_rule.iam_user_created.name
+#  arn  = aws_sns_topic.security_alerts.arn
+#}
 
 resource "aws_sns_topic_policy" "allow_eventbridge" {
   arn = aws_sns_topic.security_alerts.arn
@@ -159,3 +171,85 @@ resource "aws_sns_topic_policy" "allow_eventbridge" {
     ]
   })
 }
+# -----------------------------
+# Phase 4 - Lambda Automation
+# -----------------------------
+
+resource "aws_iam_role" "lambda_role" {
+  name = "security-alert-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# Allow Lambda to publish alerts to SNS
+resource "aws_iam_role_policy" "lambda_sns_publish" {
+  name = "lambda-sns-publish"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "sns:Publish"
+      ]
+      Resource = aws_sns_topic.security_alerts.arn
+    }]
+  })
+}
+
+resource "aws_lambda_function" "security_alert" {
+  function_name = "security-alert-formatter"
+
+  filename         = "../lambda/security_alert.zip"
+  source_code_hash = filebase64sha256("../lambda/security_alert.zip")
+
+  role    = aws_iam_role.lambda_role.arn
+  handler = "security_alert.lambda_handler"
+  runtime = "python3.12"
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.security_alerts.arn
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic,
+    aws_iam_role_policy.lambda_sns_publish
+  ]
+}
+
+resource "aws_cloudwatch_event_target" "lambda_target" {
+  rule = aws_cloudwatch_event_rule.iam_user_created.name
+  arn  = aws_lambda_function.security_alert.arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.security_alert.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.iam_user_created.arn
+}
+
+# Keep this commented during testing
+#
+# resource "aws_cloudwatch_event_target" "send_to_sns" {
+#   rule = aws_cloudwatch_event_rule.iam_user_created.name
+#   arn  = aws_sns_topic.security_alerts.arn
+# }
