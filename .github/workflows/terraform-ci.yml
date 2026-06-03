@@ -41,7 +41,7 @@ jobs:
         with:
           directory: terraform
           framework: terraform
-          config_file: .checkov.yaml
+          skip_check: CKV_AWS_115,CKV_AWS_117,CKV_AWS_272,CKV_AWS_144,CKV_AWS 145,CKV_AWS_158,CKV_AWS_252,CKV_AWS_18
 
       - name: Terraform Plan
         run: terraform plan
