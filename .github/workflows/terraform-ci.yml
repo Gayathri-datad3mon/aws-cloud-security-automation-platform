@@ -20,6 +20,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Check Secrets Exist
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+           echo "ACCESS KEY MISSING"
+           exit 1
+          fi
+           echo "ACCESS KEY FOUND"
+           
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
