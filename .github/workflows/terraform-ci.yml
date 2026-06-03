@@ -20,14 +20,6 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Check Secrets Exist
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-           echo "ACCESS KEY MISSING"
-           exit 1
-          fi
-           echo "ACCESS KEY FOUND"
-           
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -43,6 +35,12 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: Checkov Security Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
 
       - name: Terraform Plan
         run: terraform plan
