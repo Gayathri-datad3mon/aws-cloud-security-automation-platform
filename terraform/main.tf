@@ -161,7 +161,50 @@ resource "aws_cloudtrail" "security_trail" {
 resource "aws_sns_topic" "security_alerts" {
   name = "security-alerts"
 }
+resource "aws_s3_bucket_notification" "bucket_notification" {
+  bucket = aws_s3_bucket.secure_bucket.id
 
+  topic {
+    topic_arn = aws_sns_topic.security_alerts.arn
+
+    events = [
+      "s3:ObjectCreated:*"
+    ]
+  }
+
+  depends_on = [
+    aws_sns_topic_policy.allow_s3
+  ]
+}
+resource "aws_sns_topic_policy" "allow_s3" {
+  arn = aws_sns_topic.security_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid = "AllowS3Publish"
+
+        Effect = "Allow"
+
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+
+        Action = "sns:Publish"
+
+        Resource = aws_sns_topic.security_alerts.arn
+
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.secure_bucket.arn
+          }
+        }
+      }
+    ]
+  })
+}
 resource "aws_sns_topic_subscription" "email_alert" {
   topic_arn = aws_sns_topic.security_alerts.arn
   protocol  = "email"
