@@ -91,7 +91,51 @@ resource "aws_s3_bucket_policy" "cloudtrail_policy" {
     ]
   })
 }
+# -----------------------------
+# CloudWatch Integration
+# -----------------------------
 
+resource "aws_cloudwatch_log_group" "cloudtrail_logs" {
+  name              = "/aws/cloudtrail/security-trail"
+  retention_in_days = 30
+}
+
+resource "aws_iam_role" "cloudtrail_cloudwatch_role" {
+  name = "cloudtrail-cloudwatch-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+
+      Principal = {
+        Service = "cloudtrail.amazonaws.com"
+      }
+
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
+  name = "cloudtrail-cloudwatch-policy"
+  role = aws_iam_role.cloudtrail_cloudwatch_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [{
+      Effect = "Allow"
+
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+
+      Resource = "*"
+    }]
+  })
+}
 # Low-cost CloudTrail
 resource "aws_cloudtrail" "security_trail" {
   name                          = "security-trail"
@@ -100,8 +144,12 @@ resource "aws_cloudtrail" "security_trail" {
   is_multi_region_trail         = true
   enable_logging                = true
 
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail_logs.arn}:*"
+  cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch_role.arn
+
   depends_on = [
-    aws_s3_bucket_policy.cloudtrail_policy
+    aws_s3_bucket_policy.cloudtrail_policy,
+    aws_iam_role_policy.cloudtrail_cloudwatch_policy
   ]
 }
 
