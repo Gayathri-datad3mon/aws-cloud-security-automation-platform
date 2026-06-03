@@ -139,7 +139,7 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
         "logs:PutLogEvents"
       ]
 
-      Resource = "*"
+      Resource = "${aws_cloudwatch_log_group.cloudtrail_logs.arn}:*"
     }]
   })
 }
@@ -321,6 +321,27 @@ resource "aws_iam_role_policy" "lambda_sns_publish" {
     }]
   })
 }
+resource "aws_iam_role_policy" "lambda_sqs_dlq" {
+  name = "lambda-sqs-dlq"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [{
+      Effect = "Allow"
+
+      Action = [
+        "sqs:SendMessage"
+      ]
+
+      Resource = aws_sqs_queue.lambda_dlq.arn
+    }]
+  })
+}
+resource "aws_sqs_queue" "lambda_dlq" {
+  name = "security-alert-dlq"
+}
 
 resource "aws_lambda_function" "security_alert" {
   function_name = "security-alert-formatter"
@@ -332,8 +353,14 @@ resource "aws_lambda_function" "security_alert" {
   handler = "security_alert.lambda_handler"
   runtime = "python3.12"
 
+  # CKV_AWS_50
   tracing_config {
     mode = "Active"
+  }
+
+  # CKV_AWS_116
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   environment {
@@ -344,7 +371,8 @@ resource "aws_lambda_function" "security_alert" {
 
   depends_on = [
     aws_iam_role_policy_attachment.lambda_basic,
-    aws_iam_role_policy.lambda_sns_publish
+    aws_iam_role_policy.lambda_sns_publish,
+    aws_iam_role_policy.lambda_sqs_dlq
   ]
 }
 resource "aws_cloudwatch_event_target" "lambda_target" {
