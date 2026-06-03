@@ -151,6 +151,8 @@ resource "aws_cloudtrail" "security_trail" {
   is_multi_region_trail         = true
   enable_logging                = true
 
+  enable_log_file_validation = true
+
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail_logs.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch_role.arn
 
@@ -252,12 +254,25 @@ resource "aws_sns_topic_policy" "allow_eventbridge" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+
       {
         Sid    = "AllowEventBridgePublish"
         Effect = "Allow"
 
         Principal = {
           Service = "events.amazonaws.com"
+        }
+
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.security_alerts.arn
+      },
+
+      {
+        Sid    = "AllowCloudTrailPublish"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
         }
 
         Action   = "sns:Publish"
