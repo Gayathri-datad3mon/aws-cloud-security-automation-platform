@@ -54,6 +54,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "log_retention" {
     noncurrent_version_expiration {
       noncurrent_days = 7
     }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
   }
 }
 
@@ -94,12 +97,15 @@ resource "aws_s3_bucket_policy" "cloudtrail_policy" {
 # -----------------------------
 # CloudWatch Integration
 # -----------------------------
-
+#resource "aws_kms_key" "logs_key" {
+# description         = "KMS key for CloudWatch Logs"
+#  enable_key_rotation = true
+#}
 resource "aws_cloudwatch_log_group" "cloudtrail_logs" {
   name              = "/aws/cloudtrail/security-trail"
-  retention_in_days = 30
+  retention_in_days = 365
+  #  kms_key_id        = aws_kms_key.logs_key.arn
 }
-
 resource "aws_iam_role" "cloudtrail_cloudwatch_role" {
   name = "cloudtrail-cloudwatch-role"
 
@@ -311,6 +317,10 @@ resource "aws_lambda_function" "security_alert" {
   handler = "security_alert.lambda_handler"
   runtime = "python3.12"
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       SNS_TOPIC_ARN = aws_sns_topic.security_alerts.arn
@@ -322,7 +332,6 @@ resource "aws_lambda_function" "security_alert" {
     aws_iam_role_policy.lambda_sns_publish
   ]
 }
-
 resource "aws_cloudwatch_event_target" "lambda_target" {
   rule = aws_cloudwatch_event_rule.iam_user_created.name
   arn  = aws_lambda_function.security_alert.arn
