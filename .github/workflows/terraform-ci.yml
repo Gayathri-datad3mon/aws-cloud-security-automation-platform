@@ -40,7 +40,7 @@ jobs:
         uses: bridgecrewio/checkov-action@master
         with:
           directory: terraform
-          framework: terraform
+          config_file: .checkov.yaml
 
       - name: Terraform Plan
         run: terraform plan
