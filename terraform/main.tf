@@ -169,18 +169,18 @@ resource "aws_cloudtrail" "security_trail" {
 resource "aws_sns_topic" "security_alerts" {
   name = "security-alerts"
 }
-resource "aws_s3_bucket_notification" "bucket_notification" {
-  bucket = aws_s3_bucket.secure_bucket.id
-
-  topic {
-    topic_arn = aws_sns_topic.security_alerts.arn
-    events    = ["s3:ObjectCreated:*"]
-  }
-
-  depends_on = [
-    aws_sns_topic_policy.allow_s3
-  ]
-}
+# resource "aws_s3_bucket_notification" "bucket_notification" {
+#   bucket = aws_s3_bucket.secure_bucket.id
+#
+#   topic {
+#     topic_arn = aws_sns_topic.security_alerts.arn
+#     events    = ["s3:ObjectCreated:*"]
+#   }
+#
+#   depends_on = [
+#     aws_sns_topic_policy.allow_s3
+#   ]
+# }
 resource "aws_sns_topic_policy" "allow_s3" {
   arn = aws_sns_topic.security_alerts.arn
 
