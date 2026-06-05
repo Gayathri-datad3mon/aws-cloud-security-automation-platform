@@ -1,784 +1,651 @@
 # AWS Cloud Security Automation Platform
 
-### Real-Time IAM Threat Detection and Security Alerting using Terraform, CloudTrail, EventBridge, Lambda, SNS, and S3
+## Project Overview
 
----
+The AWS Cloud Security Automation Platform is a cloud security monitoring and DevSecOps project designed to demonstrate how security controls, infrastructure automation, continuous integration, continuous deployment, vulnerability management, and cloud-native monitoring can be integrated into a single AWS environment.
 
-# Project Overview
+The project was built using Infrastructure as Code (IaC) with Terraform and deployed in AWS. Security monitoring is implemented through CloudTrail, EventBridge, Lambda, SNS, CloudWatch Logs, and SQS. Security validation is integrated into the development lifecycle using GitHub Actions, Checkov, and Trivy.
 
-This project demonstrates how to build a cloud-native security monitoring and automation platform on AWS using Infrastructure as Code (IaC) with Terraform.
-
-The platform continuously monitors AWS account activity, detects critical IAM security events, automatically formats security alerts, and sends real-time notifications to security analysts.
-
-The entire environment is deployed and managed using Terraform and operates within AWS Free Tier limits.
+The primary goal of this project is to automate cloud security monitoring while demonstrating secure infrastructure deployment practices and DevSecOps workflows.
 
 ---
 
 # Business Problem
 
-In cloud environments, unauthorized IAM activities can lead to:
+Organizations often face several cloud security challenges:
 
-* Privilege escalation
-* Unauthorized user creation
-* Backdoor account creation
-* Credential theft
-* Persistence mechanisms
+* Lack of visibility into cloud activities.
+* Delayed detection of suspicious changes.
+* Manual infrastructure deployment.
+* Configuration drift across environments.
+* Limited security validation before deployment.
+* Absence of automated vulnerability scanning.
 
-Security teams need a way to:
+Without automation, security teams spend significant time manually reviewing logs, validating infrastructure configurations, and responding to incidents.
 
-* Monitor IAM activities
-* Detect suspicious actions
-* Receive real-time alerts
-* Maintain audit logs
-* Automate incident notification
-
-This project solves that problem.
+This project addresses these challenges by automating security monitoring, infrastructure deployment, and security validation.
 
 ---
 
-# Project Architecture
+# Project Objectives
 
-```text
-┌────────────────────┐
-│ AWS IAM            │
-│ CreateUser Event   │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ AWS CloudTrail     │
-│ Audit Logging      │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ EventBridge        │
-│ Event Detection    │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ AWS Lambda         │
-│ Alert Formatter    │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ SNS Topic          │
-│ Alert Distribution │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ Email Notification │
-└────────────────────┘
-```
+The primary objectives of this project were:
+
+* Automate AWS infrastructure deployment.
+* Monitor security-relevant AWS events.
+* Generate automated security alerts.
+* Implement Infrastructure as Code.
+* Integrate security scanning into CI/CD.
+* Maintain centralized infrastructure state.
+* Demonstrate modern DevSecOps practices.
 
 ---
 
 # Technologies Used
 
-| Technology      | Purpose                |
-| --------------- | ---------------------- |
-| Terraform       | Infrastructure as Code |
-| AWS S3          | Log Storage            |
-| AWS CloudTrail  | Audit Logging          |
-| AWS EventBridge | Event Detection        |
-| AWS Lambda      | Serverless Processing  |
-| AWS SNS         | Alert Notification     |
-| IAM             | Identity Monitoring    |
-| GitHub          | Version Control        |
+## Cloud Platform
+
+* Amazon Web Services (AWS)
+
+## Infrastructure as Code
+
+* Terraform
+
+## Security Monitoring
+
+* AWS CloudTrail
+* Amazon EventBridge
+* AWS Lambda
+* Amazon SNS
+* Amazon CloudWatch Logs
+* Amazon SQS
+
+## DevSecOps
+
+* GitHub Actions
+* Checkov
+* Trivy
+* Docker
+
+## State Management
+
+* Amazon S3
+* Amazon DynamoDB
 
 ---
 
-# What is Terraform?
+# Architecture Overview
 
-Terraform is an Infrastructure as Code (IaC) tool developed by HashiCorp.
+## CI/CD Pipeline
 
-Instead of manually creating cloud resources through the AWS Console, Terraform allows infrastructure to be defined using code.
+GitHub
+↓
+GitHub Actions
+↓
+Terraform Validation
+↓
+Checkov Security Scan
+↓
+Docker Build
+↓
+Trivy Vulnerability Scan
+↓
+Terraform Plan
+↓
+Terraform Apply
+↓
+AWS Infrastructure Updated
 
-Example:
+---
 
-```hcl
-resource "aws_s3_bucket" "secure_bucket" {
-  bucket = "gayathri-cloud-security-platform-2026"
-}
-```
+## Runtime Security Monitoring
+
+CloudTrail
+↓
+EventBridge
+↓
+Lambda
+↓
+SNS
+↓
+Email Notification
+
+---
+
+## Terraform Backend
+
+Terraform
+↓
+S3 Remote State
+↓
+DynamoDB State Locking
+
+---
+
+# File Structure
+
+aws-cloud-security-automation-platform/
+
+├── .github/
+
+│ └── workflows/
+
+│ └── terraform-ci.yml
+
+├── terraform/
+
+│ ├── main.tf
+
+│ ├── backend.tf
+
+│ └── terraform.tfvars
+
+├── lambda/
+
+│ └── security_alert.py
+
+├── Dockerfile
+
+├── .dockerignore
+
+└── README.md
+
+---
+
+# Detailed File Explanation
+
+## terraform/main.tf
+
+This is the core infrastructure definition file.
+
+Purpose:
+
+* Creates AWS resources.
+* Defines security controls.
+* Configures monitoring services.
+* Defines event processing logic.
+
+Resources created:
+
+* S3 Bucket
+* CloudTrail
+* CloudWatch Log Group
+* SNS Topic
+* Lambda Function
+* EventBridge Rules
+* IAM Roles
+* SQS Dead Letter Queue
+
+Without this file, no infrastructure would be deployed.
+
+---
+
+## terraform/backend.tf
+
+Purpose:
+
+Store Terraform state remotely.
+
+Configuration:
+
+* S3 Bucket Backend
+* DynamoDB Locking
 
 Benefits:
 
-* Automation
-* Repeatability
-* Version Control
-* Consistency
-* Reduced Human Error
+* Prevents state loss.
+* Enables team collaboration.
+* Prevents simultaneous deployments.
+
+Without backend configuration:
+
+* State remains local.
+* GitHub Actions cannot track infrastructure.
+* Multiple deployments may corrupt state.
 
 ---
 
-# Phase 1 – Secure S3 Storage
-
-## Objective
-
-Create a secure storage location for CloudTrail logs.
-
----
-
-## Why S3?
-
-Amazon S3 is an object storage service used to store:
-
-* Audit logs
-* Backups
-* Security data
-* CloudTrail records
-
----
-
-## Bucket Creation
-
-```hcl
-resource "aws_s3_bucket" "secure_bucket" {
-  bucket = "gayathri-cloud-security-platform-2026"
-}
-```
-
-Creates:
-
-```text
-S3 Bucket
-```
-
----
-
-## Versioning
-
-```hcl
-resource "aws_s3_bucket_versioning" "versioning"
-```
+## lambda/security_alert.py
 
 Purpose:
 
-```text
-Protects against:
-- Accidental deletion
-- File overwrite
-- Log tampering
-```
+Processes security events received from EventBridge.
+
+Responsibilities:
+
+* Receives event payload.
+* Extracts event information.
+* Formats security alert.
+* Publishes notification to SNS.
+
+This is the project's security automation engine.
 
 ---
 
-## Encryption
-
-```hcl
-resource "aws_s3_bucket_server_side_encryption_configuration"
-```
+## .github/workflows/terraform-ci.yml
 
 Purpose:
 
-```text
-Encrypts logs at rest
-AES-256 Encryption
-```
+Automates infrastructure validation and deployment.
+
+Pipeline Stages:
+
+1. Checkout Repository
+2. Configure AWS Credentials
+3. Terraform Init
+4. Terraform Validate
+5. Checkov Scan
+6. Docker Build
+7. Trivy Scan
+8. Terraform Plan
+9. Terraform Apply
+
+This file implements CI/CD.
 
 ---
 
-## Public Access Block
-
-```hcl
-resource "aws_s3_bucket_public_access_block"
-```
+## Dockerfile
 
 Purpose:
 
-```text
-Prevents:
-- Public bucket exposure
-- Anonymous access
-- Data leakage
-```
+Containerizes the Lambda application.
+
+Benefits:
+
+* Reproducible environment.
+* Vulnerability scanning.
+* Future container deployment support.
 
 ---
 
-# Phase 2 – CloudTrail Logging
+## .dockerignore
 
-## What is CloudTrail?
+Purpose:
 
-AWS CloudTrail records API activity occurring within AWS.
+Prevents unnecessary files from entering Docker images.
+
+Benefits:
+
+* Smaller image size.
+* Faster builds.
+* Reduced attack surface.
+
+---
+
+# Security Controls Implemented
+
+## CloudTrail
+
+Purpose:
+
+Record all AWS API activity.
+
+Benefits:
+
+* Auditability.
+* Incident investigations.
+* Compliance support.
+
+---
+
+## CloudWatch Logs
+
+Purpose:
+
+Centralized log collection.
+
+Benefits:
+
+* Log retention.
+* Monitoring.
+* Event correlation.
+
+---
+
+## EventBridge
+
+Purpose:
+
+Detect specific security events.
 
 Examples:
 
-```text
-CreateUser
-DeleteUser
-CreateAccessKey
-AttachUserPolicy
-StartInstances
-StopInstances
-```
+* IAM User Creation
+* Role Changes
+* Policy Modifications
 
 ---
 
-## CloudTrail Configuration
-
-```hcl
-resource "aws_cloudtrail" "security_trail"
-```
-
----
-
-### Important Parameters
-
-```hcl
-include_global_service_events = true
-```
-
-Captures:
-
-```text
-IAM Events
-```
-
-IAM is a global service.
-
----
-
-```hcl
-is_multi_region_trail = true
-```
-
-Captures:
-
-```text
-All AWS Regions
-```
-
----
-
-## S3 Bucket Policy
-
-CloudTrail needs permission to write logs.
-
-```hcl
-resource "aws_s3_bucket_policy"
-```
-
-Allows:
-
-```text
-CloudTrail
-      ↓
-S3 Bucket
-```
-
----
-
-## Lifecycle Policy
-
-```hcl
-resource "aws_s3_bucket_lifecycle_configuration"
-```
-
-Deletes logs after:
-
-```text
-7 days
-```
-
-Reason:
-
-```text
-Free Tier Cost Optimization
-```
-
----
-
-# Phase 3 – Event Detection
-
-## What is EventBridge?
-
-EventBridge is AWS's event routing service. CloudTrail records all AWS API activity, while EventBridge continuously monitors those events and filters for security-relevant IAM actions such as CreateUser, DeleteUser, and CreateAccessKey. When a matching event occurs, EventBridge automatically invokes a Lambda function, enabling real-time security monitoring and alerting without manual log review.
-
-It acts like:
-
-```text
-IF event happens
-THEN perform action
-```
-
----
-
-## Event Rule
-
-```hcl
-resource "aws_cloudwatch_event_rule"
-```
-
-Monitors:
-
-```text
-CreateUser
-DeleteUser
-CreateAccessKey
-DeleteAccessKey
-AttachUserPolicy
-PutUserPolicy
-CreateLoginProfile
-```
-
-These events are important because attackers frequently use them for persistence.
-
----
-
-## Example Detection
-
-```text
-User Creates New IAM Account
-      ↓
-CloudTrail Logs Event
-      ↓
-EventBridge Detects Event
-```
-
----
-
-# Phase 4 – SNS Alerting
-
-## What is SNS?
-
-SNS = Simple Notification Service
+## Lambda
 
 Purpose:
 
-```text
-Send alerts
-Send emails
-Send SMS
-Notify applications
-```
-
----
-
-## Topic Creation
-
-```hcl
-resource "aws_sns_topic"
-```
-
-Creates:
-
-```text
-security-alerts
-```
-
----
-
-## Email Subscription
-
-```hcl
-resource "aws_sns_topic_subscription"
-```
-
-Subscribes:
-
-```text
-gayathrinaidu1999@gmail.com
-```
-
----
-
-# Initial Problem
-
-Originally:
-
-```text
-CloudTrail
-      ↓
-EventBridge
-      ↓
-SNS
-```
-
-Generated emails like:
-
-```json
-{
- "eventName":"CreateUser",
- "eventSource":"iam.amazonaws.com"
-}
-```
-
-Very difficult for analysts to read.
-
----
-
-# Phase 5 – Lambda Automation
-
-## What is Lambda?
-
-AWS Lambda is a serverless compute service.
+Automate response actions.
 
 Benefits:
 
-```text
-No Servers
-No Patching
-Pay-per-use
-Automatic Scaling
-```
+* Real-time processing.
+* Serverless architecture.
+* Reduced operational overhead.
 
 ---
-Why did you use Lambda instead of sending CloudTrail events directly to SNS?
-```text
-Initially, EventBridge forwarded CloudTrail events directly to SNS, which resulted in raw JSON notifications. I introduced AWS Lambda as an intermediate processing layer to parse CloudTrail events, extract relevant security information such as the actor, target user, source IP, and region, and generate analyst-friendly security alerts. This approach improves readability, enables future enrichment and risk scoring, and supports more advanced automated response workflows.
-```
 
-## Lambda Function
-
-File:
-
-```text
-security_alert.py
-```
+## SNS
 
 Purpose:
 
-```text
-Parse CloudTrail Event
-Extract Important Information
-Generate Human Readable Alert
-```
+Deliver notifications.
+
+Benefits:
+
+* Email alerts.
+* Event distribution.
+* Rapid awareness.
 
 ---
 
-## Code Logic
+## SQS Dead Letter Queue
 
-Receives:
+Purpose:
 
-```json
-{
- "eventName":"CreateUser"
-}
-```
+Store failed Lambda events.
 
-Extracts:
+Benefits:
 
-```text
-Actor
-Target User
-Source IP
-Region
-```
-
-Creates:
-
-```text
-SECURITY ALERT
-
-Event: CreateUser
-Actor: security-admin
-Target User: test-alert-013
-Source IP: 35.144.68.201
-Region: us-east-1
-```
+* Prevent data loss.
+* Improve reliability.
+* Support troubleshooting.
 
 ---
 
-## SNS Publishing
+# Infrastructure Security Validation
 
-Lambda sends:
+## Checkov
 
-```python
-sns.publish()
-```
+Purpose:
 
-to:
+Scan Terraform code for security misconfigurations.
 
-```text
-security-alerts Topic
-```
-<img width="1918" height="1015" alt="image" src="https://github.com/user-attachments/assets/779c3d96-a564-4b91-a91d-8da4ff871c20" />
+Checks performed:
 
----
+* Encryption
+* Logging
+* IAM Security
+* Public Access
+* CloudTrail Configuration
 
-# Final Architecture
+Benefits:
 
-```text
-IAM Event
-      ↓
-CloudTrail
-      ↓
-EventBridge
-      ↓
-Lambda
-      ↓
-SNS
-      ↓
-Email Alert
-```
+* Prevent insecure deployments.
+* Shift security left.
 
 ---
 
-# Problems Encountered and Resolutions
+## Trivy
 
-## Problem 1 – CloudTrail Events Missing
+Purpose:
+
+Scan Docker images for vulnerabilities.
+
+Detects:
+
+* Critical vulnerabilities
+* High vulnerabilities
+* Known CVEs
+
+Benefits:
+
+* Secure container deployments.
+* Vulnerability visibility.
+
+---
+
+# Remote State Management
+
+## Why Remote State Was Needed
+
+Initially Terraform state was stored locally.
+
+Problems:
+
+* GitHub Actions could not see infrastructure.
+* Duplicate resource creation attempts occurred.
+* Infrastructure tracking became unreliable.
+
+Solution:
+
+* S3 Remote State
+* DynamoDB Locking
+
+Benefits:
+
+* Centralized state.
+* Team collaboration.
+* Safe deployments.
+
+---
+
+# Major Challenges Encountered
+
+## Challenge 1: Git Push Rejections
 
 Issue:
 
-```text
-CreateUser events not visible
-```
+Remote repository contained changes not available locally.
+
+Error:
+
+Non-fast-forward update rejection.
+
+Solution:
+
+* Git Pull Rebase
+* Conflict Resolution
+* Rebase Completion
+
+Outcome:
+
+Repository synchronization restored.
+
+---
+
+## Challenge 2: Terraform State Management
+
+Issue:
+
+GitHub Actions attempted to recreate existing resources.
+
+Examples:
+
+* S3 Buckets
+* IAM Roles
+* CloudWatch Log Groups
+
+Root Cause:
+
+State stored locally.
+
+Solution:
+
+* S3 Backend
+* DynamoDB Lock Table
+
+Outcome:
+
+Consistent infrastructure tracking.
+
+---
+
+## Challenge 3: CloudWatch and KMS Integration
+
+Issue:
+
+CloudWatch Log Group KMS association failed.
 
 Cause:
 
-```text
-Resources deployed in us-east-2
-IAM events viewed in us-east-1
-```
+Improper KMS configuration.
 
 Solution:
 
-```text
-Moved entire deployment to us-east-1
-Enabled Multi-Region Trail
-```
+* KMS key validation.
+* Correct resource references.
+
+Outcome:
+
+Successful log group encryption.
 
 ---
 
-## Problem 2 – EventBridge Not Triggering
+## Challenge 4: CloudTrail SNS Policy Errors
 
 Issue:
 
-```text
-No alerts generated
-```
+CloudTrail could not publish notifications.
+
+Error:
+
+InsufficientSnsTopicPolicyException
+
+Solution:
+
+* Updated SNS topic policies.
+* Added required permissions.
+
+Outcome:
+
+Successful CloudTrail integration.
+
+---
+
+## Challenge 5: Excessive Email Notifications
+
+Issue:
+
+Hundreds of email alerts generated.
 
 Cause:
 
-```text
-Event pattern too restrictive
-```
+S3 ObjectCreated notifications triggered for every CloudTrail log file.
 
 Solution:
 
-```text
-Verified CloudTrail logs
-Validated EventBridge rule
-Updated pattern
-```
+* Removed S3 notification configuration.
+* Relied on EventBridge-based security alerts.
+
+Outcome:
+
+Meaningful alerting without notification flooding.
 
 ---
 
-## Problem 3 – Raw JSON Emails
+## Challenge 6: Docker Build Failures
 
 Issue:
 
-```text
-Unreadable security alerts
-```
+GitHub Actions could not locate Dockerfile.
+
+Cause:
+
+Workflow executed from terraform directory.
 
 Solution:
 
-```text
-Added Lambda Formatter
-```
+* Adjusted Docker build path.
+* Referenced repository root.
+
+Outcome:
+
+Successful container builds.
 
 ---
 
-## Problem 4 – SNS Permissions
+# End-to-End Workflow
 
-Issue:
+## Infrastructure Deployment Flow
 
-```text
-Lambda unable to publish alerts
-```
-
-Solution:
-
-```hcl
-aws_iam_role_policy
-```
-
-Added:
-
-```text
-sns:Publish
-```
-
-Permission.
-
----
-
-## Problem 5 – Region Mismatch
-
-Issue:
-
-```text
-CloudTrail
-EventBridge
-SNS
-Different Regions
-```
-
-Solution:
-
-```text
-Standardized everything in us-east-1
-```
+Developer Updates Code
+↓
+GitHub Commit
+↓
+GitHub Actions Triggered
+↓
+Terraform Validation
+↓
+Checkov Security Scan
+↓
+Docker Build
+↓
+Trivy Vulnerability Scan
+↓
+Terraform Plan
+↓
+Terraform Apply
+↓
+AWS Infrastructure Updated
 
 ---
 
-# Commands Used
+## Security Monitoring Flow
 
-## Terraform Initialization
-
-```powershell
-terraform init
-```
-
-Downloads AWS provider plugins.
-
----
-
-## View Deployment Plan
-
-```powershell
-terraform plan
-```
-
-Shows resources to be created.
+AWS Activity Occurs
+↓
+CloudTrail Records Activity
+↓
+EventBridge Detects Event
+↓
+Lambda Processes Event
+↓
+SNS Publishes Alert
+↓
+Email Notification Sent
 
 ---
 
-## Deploy Infrastructure
+## State Management Flow
 
-```powershell
-terraform apply
-```
-
-Creates resources.
-
----
-
-## View State
-
-```powershell
-terraform state list
-```
-
-Displays managed resources.
-
----
-
-## Destroy Resources
-
-```powershell
-terraform destroy
-```
-
-Deletes infrastructure.
-
----
-
-# Git Commands Used
-
-## Add Files
-
-```powershell
-git add .
-```
-
----
-
-## Commit Changes
-
-```powershell
-git commit -m "Completed AWS Cloud Security Automation Platform"
-```
-
----
-
-## Push to GitHub
-
-```powershell
-git push origin main
-```
-
----
-
-# Security Use Cases
-
-Detect:
-
-```text
-Unauthorized IAM User Creation
-Credential Creation
-Policy Attachments
-Privilege Escalation Attempts
-Backdoor User Accounts
-```
-
----
-
-# Skills Demonstrated
-
-### Cloud Security
-
-```text
-AWS IAM
-CloudTrail
-SNS
-EventBridge
-Lambda
-```
-
-### Infrastructure as Code
-
-```text
 Terraform
-```
-
-### Security Operations
-
-```text
-Threat Detection
-Monitoring
-Alerting
-Automation
-```
-
-### Detection Engineering
-
-```text
-Event Correlation
-Alert Generation
-Security Monitoring
-```
+↓
+S3 Remote State
+↓
+DynamoDB Locking
+↓
+Safe Infrastructure Updates
 
 ---
 
 # Key Learning Outcomes
 
-* Infrastructure as Code using Terraform
-* AWS Security Service Integration
-* Audit Logging with CloudTrail
+This project provided hands-on experience with:
+
+* Infrastructure as Code
+* AWS Security Monitoring
+* Cloud Security Architecture
+* DevSecOps Practices
+* CI/CD Pipelines
+* Security Automation
+* Cloud Logging
+* Vulnerability Management
+* Remote State Management
 * Event-Driven Security Monitoring
-* Serverless Security Automation
-* Real-Time Alerting
-* IAM Threat Detection
-* Cloud Security Architecture Design
 
 ---
 
-# Final Result
+# Future Enhancements
 
-Successfully built a **fully automated AWS Cloud Security Monitoring and Alerting Platform** that:
+Potential future improvements include:
 
-✅ Detects IAM security events
-✅ Stores audit logs securely
-✅ Automates event processing
-✅ Generates human-readable security alerts
-✅ Sends real-time notifications
-✅ Uses Infrastructure as Code
-✅ Operates within AWS Free Tier limits
+* Kubernetes Security Monitoring
+* Falco Runtime Detection
+* Security Hub Integration
+* GuardDuty Integration
+* Automated Incident Response
+* Slack Alerting
+* Security Dashboard Development
+* Multi-Account Monitoring
 
-This project demonstrates practical cloud security engineering, security automation, detection engineering, and infrastructure-as-code skills applicable to Security Engineer, Cloud Security Engineer, SOC Engineer, and Detection Engineer roles.
+---
+
+# Conclusion
+
+This project demonstrates the implementation of a secure, automated, cloud-native security monitoring platform using AWS, Terraform, GitHub Actions, Checkov, Trivy, and serverless technologies. The solution combines infrastructure automation, continuous security validation, event-driven monitoring, and DevSecOps practices to provide an end-to-end security monitoring framework suitable for modern cloud environments.
