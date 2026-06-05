@@ -46,8 +46,7 @@ jobs:
           skip_check: CKV_AWS_115,CKV_AWS_117,CKV_AWS_272,CKV2_AWS_62,CKV_AWS_144,CKV_AWS_145,CKV_AWS_158,CKV_AWS_252,CKV_AWS_18,CKV_AWS_35,CKV_AWS_26,CKV_AWS_27,CKV_AWS_173, CKV_AWS_300
      
       - name: Build Docker Image
-        working-directory: ..
-        run: docker build -t security-alert-lambda .
+        run: docker build -f ../Dockerfile -t security-alert-lambda ..
 
       - name: Trivy Container Scan
         uses: aquasecurity/trivy-action@master
