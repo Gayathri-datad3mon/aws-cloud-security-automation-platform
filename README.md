@@ -250,6 +250,12 @@ Purpose:
 
 Containerizes the Lambda application.
 
+Take Lambda Python code
+    ↓
+Package it into a container image
+    ↓
+Allow Trivy to scan it for vulnerabilities
+
 Benefits:
 
 * Reproducible environment.
@@ -263,6 +269,8 @@ Benefits:
 Purpose:
 
 Prevents unnecessary files from entering Docker images.
+
+.dockerignore reduces Docker image size, speeds up builds, prevents sensitive files such as Terraform state from being included in container images, and minimizes the attack surface for security scanning.
 
 Benefits:
 
