@@ -184,7 +184,8 @@ Without this file, no infrastructure would be deployed.
 
 Purpose:
 
-Store Terraform state remotely.
+Store Terraform state remotely. 
+Terraform initially stored state locally, which prevented GitHub Actions from accurately tracking deployed infrastructure. I migrated the state to an S3 backend to provide centralized state management and implemented DynamoDB state locking to prevent concurrent Terraform operations from corrupting the state file. This enabled safe collaboration between local development and CI/CD deployments while maintaining a single source of truth for infrastructure.
 
 Configuration:
 
